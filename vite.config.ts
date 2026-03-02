@@ -32,7 +32,7 @@ function loadStandaloneApps(): Record<string, string> {
     }
   }
 
-const appName = process.env.APP_NAME ?? process.env.VITE_APP_NAME ?? ''
+  const appName = process.env.APP_NAME ?? process.env.VITE_APP_NAME ?? ''
   const appPath = process.env.APP_PATH ?? ''
   if (appName && appPath) {
     apps[appName] = resolve(appPath)
@@ -103,16 +103,25 @@ function buildFsAllow(): string[] {
 // Config
 // ---------------------------------------------------------------------------
 
-export default defineConfig({
-  plugins: [
-    standaloneAppHtmlPlugin(),
-    ...loadAppPlugins({ externalApps: standaloneApps }),
-  ].filter(Boolean),
-  server: {
-    host: true,
-    port: 5173,
-    fs: {
-      allow: ['.', ...buildFsAllow()],
+export default defineConfig(async () => {
+  const selectedApp = process.env.VITE_APP_NAME ?? process.env.APP_NAME ?? ''
+  const selectedAppDir = standaloneApps[selectedApp] ?? null
+
+  return {
+    plugins: [
+      standaloneAppHtmlPlugin(),
+      ...(await loadAppPlugins({
+        externalApps: standaloneApps,
+        selectedApp,
+        selectedAppDir,
+      })),
+    ].filter(Boolean),
+    server: {
+      host: true,
+      port: 5173,
+      fs: {
+        allow: ['.', ...buildFsAllow()],
+      },
     },
-  },
+  }
 })

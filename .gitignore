@@ -4,3 +4,7 @@
 
 dist/
 .apps-cache/
+
+# Plugin symlinks
+vite-plugins/restapi-plugin.ts
+

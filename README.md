@@ -1,9 +1,9 @@
-# Unified Even Hub Simulator v0.0.6
+# Unified Even Hub Simulator v0.0.7
 
 Multi-application development environment for building and testing Even G2 apps with the Even Hub Simulator.
 
 ```bash
-➜  even-dev git:(main) ./start-even.sh 
+➜  even-dev git:(main) ./start-even.sh
 Starting Even Hub development environment... http://127.0.0.1:5173
 
                                                     ░░███
@@ -13,7 +13,7 @@ Starting Even Hub development environment... http://127.0.0.1:5173
 ░███░░░   ░░███ ███  ░███░░░   ░███ ░███        ░███ ░███ ░███░░░   ░░███ ███
 ░░██████   ░░█████   ░░██████  ████ █████       ░░████████░░██████   ░░█████
  ░░░░░░     ░░░░░     ░░░░░░  ░░░░ ░░░░░         ░░░░░░░░  ░░░░░░     ░░░░░
-                                                                                   
+
 Command hints:
   ./start-even.sh                  # interactive app selection
   ./start-even.sh <app-name>       # run one app directly
@@ -299,17 +299,36 @@ bridge.sendStartUpPage(container)
 
 ## Custom Vite plugins (`vite-plugins/`)
 
-Even-dev has a `vite-plugins/` directory for app-specific Vite configuration that runs when serving external apps. Current plugins:
+Even-dev autoloads Vite plugins from two places:
+
+1. **Default plugins** (always loaded):
+   - `vite-plugins/app-server.ts`
+   - `vite-plugins/browser-launcher.ts`
+2. **Discovered plugins**:
+   - Root plugin matching selected app name: `vite-plugins/<selected-app>-plugin.ts` (also supports `.js/.mjs/.cjs`)
+   - Selected app plugin file: `<app-dir>/vite-plugin.ts` (also supports `.js/.mjs/.cjs`)
+
+`start-even.sh` keeps symlinks in sync automatically:
+- Built-in apps: `apps/<name>/vite-plugin.ts` -> `vite-plugins/<name>-plugin.ts`
+- External cached apps: `.apps-cache/<name>/vite-plugin.ts` -> `vite-plugins/<name>-plugin.ts`
+
+This means app plugins can live with the app code and still be discovered by the root Vite server with no manual registration.
+
+Current plugin files in this repo:
 
 | Plugin | Purpose |
 |--------|---------|
 | `app-server.ts` | Auto-starts an app's `server/` process (e.g., Tesla's Tessie API proxy) |
 | `browser-launcher.ts` | Opens the browser when the dev server is ready |
-| `chess-stockfish.ts` | Serves Stockfish WASM assets for the chess app |
-| `reddit-proxy.ts` | Proxies Reddit API requests to avoid CORS issues |
-| `restapi-proxy.ts` | Proxies REST API requests for the restapi app |
+| `chess-plugin.ts` | Serves Stockfish WASM assets for the chess app |
+| `epub-plugin.ts` | Proxies Gutenberg requests for the epub app |
+| `reddit-plugin.ts` | Proxies Reddit API requests to avoid CORS issues |
+| `restapi-plugin.ts` | Proxies REST API requests for the restapi app |
 
-If your app needs custom server-side behaviour (API proxying, asset serving, etc.), add a plugin here. Plugins receive a `PluginContext` with `externalApps` – a map of app names to their resolved directory paths. Return `null` if the plugin doesn't apply to the current app.
+Plugins receive a `PluginContext` with:
+- `externalApps`: map of app names to resolved directory paths
+- `selectedApp`: current selected app name
+- `selectedAppDir`: current selected app absolute path (or `null`)
 
 ---
 

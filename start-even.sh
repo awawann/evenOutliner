@@ -357,6 +357,47 @@ prepare_selected_app_dir () {
   install_app_dependencies_if_needed "${app_dir}"
 }
 
+sync_app_vite_plugin_links () {
+  local root_plugins_dir="vite-plugins"
+  local scan_root=""
+  local app_dir=""
+  local app_name=""
+  local plugin_source=""
+  local link_path=""
+  local link_target=""
+  local linked_names=""
+
+  mkdir -p "${root_plugins_dir}"
+
+  for scan_root in "apps" ".apps-cache"; do
+    [ -d "${scan_root}" ] || continue
+
+    while IFS= read -r app_dir; do
+      app_name="$(basename "${app_dir}")"
+      plugin_source="${app_dir}/vite-plugin.ts"
+      [ -f "${plugin_source}" ] || continue
+
+      case ",${linked_names}," in
+        *",${app_name},"*)
+          echo "Plugin link collision for '${app_name}': keeping first match and skipping '${plugin_source}'." >&2
+          continue
+          ;;
+      esac
+
+      link_path="${root_plugins_dir}/${app_name}-plugin.ts"
+      link_target="../${plugin_source}"
+
+      if [ -e "${link_path}" ] && [ ! -L "${link_path}" ]; then
+        echo "Skipping plugin symlink '${link_path}' from '${app_dir}': file exists and is not a symlink." >&2
+        continue
+      fi
+
+      ln -snf "${link_target}" "${link_path}"
+      linked_names="${linked_names},${app_name}"
+    done < <(find "${scan_root}" -mindepth 1 -maxdepth 1 -type d ! -name '_*' ! -name '.*' | sort)
+  done
+}
+
 resolve_app_selection () {
   local apps=()
   while IFS= read -r app; do
@@ -500,6 +541,8 @@ else
   APP_DIR="$(resolve_selected_app_dir "${SELECTED_APP}")"
   prepare_selected_app_dir "${APP_DIR}" "${SELECTED_APP}"
 fi
+
+sync_app_vite_plugin_links
 
 VITE_APP_NAME="${SELECTED_APP}" APP_NAME="${SELECTED_APP}" APP_PATH="${RESOLVED_APP_PATH}" npx vite --host "${VITE_HOST}" --port "${PORT}" &
 
