@@ -305,8 +305,9 @@ Even-dev autoloads Vite plugins from two places:
    - `vite-plugins/app-server.ts`
    - `vite-plugins/browser-launcher.ts`
 2. **Discovered plugins**:
-   - Root plugin matching selected app name: `vite-plugins/<selected-app>-plugin.ts` (also supports `.js/.mjs/.cjs`)
-   - Selected app plugin file: `<app-dir>/vite-plugin.ts` (also supports `.js/.mjs/.cjs`)
+   - Selected app plugin (single effective load, also supports `.js/.mjs/.cjs`) resolved from:
+     - `vite-plugins/<selected-app>-plugin.ts`
+     - `<app-dir>/vite-plugin.ts`
 
 `start-even.sh` keeps symlinks in sync automatically:
 - Built-in apps: `apps/<name>/vite-plugin.ts` -> `vite-plugins/<name>-plugin.ts`
@@ -375,8 +376,7 @@ flowchart TD
   S --> L2[".apps-cache/{app-name}/vite-plugin.ts -> vite-plugins/{app-name}-plugin.ts"]
   A --> B["Vite dev server (APP_NAME + APP_PATH)"]
   B --> P0["Default plugins: app-server + browser-launcher"]
-  B --> P1["Selected plugin: vite-plugins/{selected-app}-plugin.ts"]
-  B --> P2["Selected app plugin: {selected-app-dir}/vite-plugin.ts"]
+  B --> P1["Selected app plugin (deduped): vite-plugins/{selected-app}-plugin.ts OR {selected-app-dir}/vite-plugin.ts"]
   B --> C["Selected app's own index.html"]
   C --> D["Selected app's src/main.ts"]
   D --> E["Even Hub SDK / bridge"]
