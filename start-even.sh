@@ -19,6 +19,9 @@ SIM_ONLY_MODE=0
 CLI_APP_NAME=""
 UPDATE_MODE=0
 UPDATE_TARGET=""
+RESET_MODE=0
+EVENHUB_MODE=0
+EVENHUB_ARGS=()
 ORIGINAL_ARGC="$#"
 
 while [ "$#" -gt 0 ]; do
@@ -38,6 +41,18 @@ while [ "$#" -gt 0 ]; do
         npm install
         exit $?
       ;;
+    --reset)
+      RESET_MODE=1
+      ;;
+    --evenhub-cli)
+      EVENHUB_MODE=1
+      shift
+      while [ "$#" -gt 0 ]; do
+        EVENHUB_ARGS+=("$1")
+        shift
+      done
+      break
+      ;;
     --web-only)
       WEB_ONLY_MODE=1
       ;;
@@ -46,7 +61,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --*)
       echo "Unknown option: $1" >&2
-      echo "Usage: ./start-even.sh [app-name] [--update [app-name]] [--web-only] [--sim-only]" >&2
+      echo "Usage: ./start-even.sh [app-name] [--update [app-name]] [--web-only] [--sim-only] [--reset] [--evenhub-cli <args...>]" >&2
       exit 1
       ;;
     *)
@@ -54,7 +69,7 @@ while [ "$#" -gt 0 ]; do
         CLI_APP_NAME="$1"
       else
         echo "Unexpected extra argument: $1" >&2
-        echo "Usage: ./start-even.sh [app-name] [--update [app-name]] [--web-only] [--sim-only]" >&2
+        echo "Usage: ./start-even.sh [app-name] [--update [app-name]] [--web-only] [--sim-only] [--reset] [--evenhub-cli <args...>]" >&2
         exit 1
       fi
       ;;
@@ -65,6 +80,26 @@ done
 if [ "${UPDATE_MODE}" -eq 1 ] && [ -n "${CLI_APP_NAME}" ] && [ -z "${UPDATE_TARGET}" ]; then
   echo "When using --update with an app name, pass it as: --update <app-name>" >&2
   exit 1
+fi
+
+if [ "${EVENHUB_MODE}" -eq 1 ] && [ "${#EVENHUB_ARGS[@]}" -eq 0 ]; then
+  EVENHUB_ARGS=(--help)
+fi
+
+if [ "${EVENHUB_MODE}" -eq 1 ] && [ "${RESET_MODE}" -eq 1 ]; then
+  echo "Do not combine --evenhub-cli with --reset." >&2
+  exit 1
+fi
+
+if [ "${RESET_MODE}" -eq 1 ] && [ -n "${CLI_APP_NAME}" ]; then
+  echo "Do not pass an app name with --reset." >&2
+  exit 1
+fi
+
+if [ "${EVENHUB_MODE}" -eq 1 ]; then
+  echo "Running evenhub-cli: ${EVENHUB_ARGS[*]}"
+  npx @evenrealities/evenhub-cli "${EVENHUB_ARGS[@]}"
+  exit $?
 fi
 
 echo "Starting Even Hub development environment... ${URL}"
@@ -89,16 +124,75 @@ command_exists () {
 print_cli_hints () {
   cat <<'EOF'
 Command hints:
-  ./start-even.sh                  # interactive app selection
-  ./start-even.sh <app-name>       # run one app directly
-  ./start-even.sh --update         # refresh all git apps from apps.json
-  ./start-even.sh --update <name>  # refresh one git app from apps.json
-  ./start-even.sh --devenv-update  # update even-dev npn dependencies from package.json
+  ./start-even.sh                        # interactive app selection
+  ./start-even.sh <app-name>             # run one app directly
+  ./start-even.sh --update               # refresh all git apps from apps.json
+  ./start-even.sh --update <name>        # refresh one git app from apps.json
+  ./start-even.sh --devenv-update        # update even-dev npm dependencies from package.json
+  ./start-even.sh --reset                # remove generated caches/build outputs
+  ./start-even.sh --evenhub-cli --help   # evenhub-cli launcher
 
   Docker experiment:
     APP_NAME=base_app ./start-even.sh --web-only         # run web app only (no simulator)
     URL=http://localhost:5173 ./start-even.sh --sim-only # run simulator only (no web server)
 EOF
+}
+
+reset_generated_files () {
+  local app_dir
+  local link_path
+
+  echo "RESET MODE: removing generated files and folders..."
+
+  read -r -p "This removes caches/build outputs (node_modules, dist, .apps-cache, plugin symlinks). Continue? [y/N]: " confirm
+  case "${confirm}" in
+    y|Y|yes|YES) ;;
+    *)
+      echo "Reset cancelled."
+      return 0
+      ;;
+  esac
+
+  if [ -d ".apps-cache" ]; then
+    rm -rf ".apps-cache"
+    echo "Removed .apps-cache/"
+  fi
+
+  if [ -d "node_modules" ]; then
+    rm -rf "node_modules"
+    echo "Removed node_modules/"
+  fi
+
+  while IFS= read -r app_dir; do
+    if [ -d "${app_dir}/node_modules" ]; then
+      rm -rf "${app_dir}/node_modules"
+      echo "Removed ${app_dir}/node_modules/"
+    fi
+
+    if [ -d "${app_dir}/dist" ]; then
+      rm -rf "${app_dir}/dist"
+      echo "Removed ${app_dir}/dist/"
+    fi
+
+    if [ -f "${app_dir}/out.ehpk" ]; then
+      rm -f "${app_dir}/out.ehpk"
+      echo "Removed ${app_dir}/out.ehpk"
+    fi
+  done < <(find "apps" -mindepth 1 -maxdepth 1 -type d ! -name '_*' ! -name '.*' | sort)
+
+  if [ -d "vite-plugins" ]; then
+    while IFS= read -r link_path; do
+      rm -f "${link_path}"
+      echo "Removed generated plugin link ${link_path}"
+    done < <(find "vite-plugins" -maxdepth 1 -type l -name '*-plugin.ts' | sort)
+  fi
+
+  if [ -d "misc/editor/node_modules" ]; then
+    rm -rf "misc/editor/node_modules"
+    echo "Removed misc/editor/node_modules/"
+  fi
+
+  echo "Reset complete."
 }
 
 get_registry_entry () {
@@ -451,6 +545,11 @@ resolve_app_selection () {
 # --------------------------------------------------
 # Check Node / npm
 # --------------------------------------------------
+
+if [ "${RESET_MODE}" -eq 1 ]; then
+  reset_generated_files
+  exit $?
+fi
 
 if ! command_exists node; then
   echo "Node.js is not installed."

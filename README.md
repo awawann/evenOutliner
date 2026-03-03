@@ -1,4 +1,4 @@
-# Unified Even Hub Simulator v0.0.7
+# Unified Even Hub Simulator v0.0.8
 
 Multi-application development environment for building and testing Even G2 apps with the Even Hub Simulator.
 
@@ -15,10 +15,14 @@ Starting Even Hub development environment... http://127.0.0.1:5173
  ░░░░░░     ░░░░░     ░░░░░░  ░░░░ ░░░░░         ░░░░░░░░  ░░░░░░     ░░░░░
 
 Command hints:
-  ./start-even.sh                  # interactive app selection
-  ./start-even.sh <app-name>       # run one app directly
-  ./start-even.sh --update         # refresh all git apps from apps.json
-  ./start-even.sh --update <name>  # refresh one git app from apps.json
+  ./start-even.sh                        # interactive app selection
+  ./start-even.sh <app-name>             # run one app directly
+  ./start-even.sh --update               # refresh all git apps from apps.json
+  ./start-even.sh --update <name>        # refresh one git app from apps.json
+  ./start-even.sh --devenv-update        # update even-dev npm dependencies from package.json
+  ./start-even.sh --reset                # remove generated caches/build outputs
+  ./start-even.sh --evenhub-cli --help   # evenhub-cli launcher
+
 Starting Vite dev server...
 Available apps:
   ID   NAME                 SOURCE
