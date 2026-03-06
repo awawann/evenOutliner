@@ -43,6 +43,14 @@ app.innerHTML = `
     </div>
   </section>
 
+  <section class="countdown-card card">
+    <p class="section-label">Countdown</p>
+    <div id="countdown-value" class="countdown-value" aria-live="polite">01:00</div>
+    <div class="countdown-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Timer progress">
+      <div id="countdown-progress-fill" class="countdown-progress__fill"></div>
+    </div>
+  </section>
+
   <section class="presets-card card">
     <p class="section-label">Presets</p>
     <div class="preset-form">
@@ -75,8 +83,11 @@ const heroPillEl = document.querySelector<HTMLDivElement>('#hero-pill')
 const presetInputEl = document.querySelector<HTMLInputElement>('#preset-input')
 const addPresetBtn = document.querySelector<HTMLButtonElement>('#add-preset-btn')
 const presetListEl = document.querySelector<HTMLDivElement>('#preset-list')
+const countdownValueEl = document.querySelector<HTMLDivElement>('#countdown-value')
+const countdownProgressFillEl = document.querySelector<HTMLDivElement>('#countdown-progress-fill')
+const countdownProgressEl = document.querySelector<HTMLDivElement>('.countdown-progress')
 
-if (!logEl || !connectBtn || !startBtn || !stopBtn || !clearLogBtn || !heroPillEl || !presetInputEl || !addPresetBtn || !presetListEl) {
+if (!logEl || !connectBtn || !startBtn || !stopBtn || !clearLogBtn || !heroPillEl || !presetInputEl || !addPresetBtn || !presetListEl || !countdownValueEl || !countdownProgressFillEl || !countdownProgressEl) {
   throw new Error('Missing UI elements')
 }
 
@@ -116,8 +127,25 @@ function appendLog(text: string): void {
   }
 }
 
-const timer = createTimerController({ setStatusMessage, setPhase, log: appendLog })
+function renderCountdown(remainingSeconds: number, totalSeconds: number): void {
+  const safeTotal = Math.max(1, totalSeconds)
+  const clampedRemaining = Math.max(0, Math.min(remainingSeconds, safeTotal))
+  const progressPercent = Math.round(((safeTotal - clampedRemaining) / safeTotal) * 100)
+  countdownValueEl.textContent = timer.formatDuration(clampedRemaining)
+  countdownProgressFillEl.style.width = `${progressPercent}%`
+  countdownProgressEl.setAttribute('aria-valuenow', String(progressPercent))
+}
+
+const timer = createTimerController({
+  setStatusMessage,
+  setPhase,
+  log: appendLog,
+  onCountdownChange: ({ remainingSeconds, totalSeconds }) => {
+    renderCountdown(remainingSeconds, totalSeconds)
+  },
+})
 setPhase('idle')
+renderCountdown(60, 60)
 
 function renderPresets() {
   const presets = timer.getPresets()

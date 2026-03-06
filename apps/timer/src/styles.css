@@ -193,6 +193,38 @@ body {
   color: var(--timer-text-muted);
 }
 
+.countdown-card {
+  display: grid;
+  gap: 8px;
+}
+
+.countdown-value {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--timer-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-progress {
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid var(--timer-border);
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.countdown-progress__fill {
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--timer-accent), var(--timer-accent-2));
+  transition: width 200ms linear;
+}
+
 .preset-form {
   display: grid;
   grid-template-columns: 1fr;

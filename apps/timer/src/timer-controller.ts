@@ -24,9 +24,16 @@ type TimerControllerDeps = {
   setStatusMessage?: (text: string) => void
   setPhase?: (phase: TimerPhase) => void
   log: (text: string) => void
+  onCountdownChange?: (state: CountdownState) => void
 }
 
 export type TimerPhase = 'idle' | 'connecting' | 'connected' | 'mock' | 'running' | 'error'
+export type CountdownState = {
+  remainingSeconds: number
+  totalSeconds: number
+  isRunning: boolean
+  isDone: boolean
+}
 
 type TimerState = {
   bridge: EvenAppBridge | null
@@ -36,6 +43,7 @@ type TimerState = {
   isRunning: boolean
   isDone: boolean
   remainingSeconds: number
+  totalSeconds: number
   intervalId: number | null
   clockIntervalId: number | null
   presetsSeconds: number[]
@@ -44,9 +52,9 @@ type TimerState = {
 const DEFAULT_PRESET_SECONDS = [60, 300, 900, 3600, 7200]
 const GLASSES_PRESET_LIST_LAYOUT = {
   x: 8,
-  y: 40,
-  width: 146,
-  height: 248,
+  y: 66,
+  width: 140,
+  height: 200,
   itemWidth: 140,
 } as const
 
@@ -65,6 +73,7 @@ function createState(): TimerState {
     isRunning: false,
     isDone: false,
     remainingSeconds: DEFAULT_PRESET_SECONDS[0],
+    totalSeconds: DEFAULT_PRESET_SECONDS[0],
     intervalId: null,
     clockIntervalId: null,
     presetsSeconds: [...DEFAULT_PRESET_SECONDS],
@@ -83,7 +92,16 @@ function clampIndex(index: number, length: number): number {
   return Math.min(length - 1, Math.max(0, index))
 }
 
-export function createTimerController({ setStatusMessage, setPhase, log }: TimerControllerDeps) {
+function buildProgressBarLine(remainingSeconds: number, totalSeconds: number): string {
+  const barLength = 12
+  const safeTotal = Math.max(1, totalSeconds)
+  const elapsedSeconds = Math.max(0, Math.min(safeTotal, safeTotal - remainingSeconds))
+  const filledBlocks = Math.round((elapsedSeconds / safeTotal) * barLength)
+  const emptyBlocks = Math.max(0, barLength - filledBlocks)
+  return `${'━'.repeat(filledBlocks)}${'─'.repeat(emptyBlocks)}`
+}
+
+export function createTimerController({ setStatusMessage, setPhase, log, onCountdownChange }: TimerControllerDeps) {
   const state = createState()
   let timerClient: TimerClient | null = null
 
@@ -99,10 +117,21 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
     return state.presetsSeconds[clampIndex(state.selectedIndex, state.presetsSeconds.length)] ?? DEFAULT_PRESET_SECONDS[0]
   }
 
+  function publishCountdownState(): void {
+    onCountdownChange?.({
+      remainingSeconds: state.remainingSeconds,
+      totalSeconds: Math.max(1, state.totalSeconds),
+      isRunning: state.isRunning,
+      isDone: state.isDone,
+    })
+  }
+
   function applyPresetSelectionDefaults() {
     state.selectedIndex = clampIndex(state.selectedIndex, state.presetsSeconds.length)
     if (!state.isRunning) {
       state.remainingSeconds = getSelectedSeconds()
+      state.totalSeconds = state.remainingSeconds
+      publishCountdownState()
     }
   }
 
@@ -134,11 +163,14 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
   }
 
   async function renderPage(bridge: EvenAppBridge): Promise<void> {
-    const timerText = state.isRunning
-      ? `${formatDurationClock(state.remainingSeconds)} | Dbl Stop`
+    const hintSeparator = '                      '
+    const timerLine = state.isRunning
+      ? `Dbl Stop${hintSeparator}${formatDurationClock(state.remainingSeconds)}`
       : state.isDone
         ? `*** TIME UP *** | Click Start`
-        : `${formatDurationClock(state.remainingSeconds)} | Click Start`
+        : `Click Start${hintSeparator}${formatDurationClock(state.remainingSeconds)}`
+    const progressLine = buildProgressBarLine(state.remainingSeconds, state.totalSeconds)
+    const timerText = `${timerLine}\n${progressLine}`
 
     const titleText = new TextContainerProperty({
       containerID: 1,
@@ -147,7 +179,7 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
       xPosition: 8,
       yPosition: 0,
       width: 300,
-      height: 32,
+      height: 58,
       isEventCapture: 0,
     })
 
@@ -211,27 +243,41 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
     await bridge.rebuildPageContainer(new RebuildPageContainer(config))
   }
 
-  async function startCountdownFromSelection(bridge: EvenAppBridge): Promise<number> {
+  async function startCountdownFromSelection(bridge?: EvenAppBridge): Promise<number> {
     const selectedSeconds = getSelectedSeconds()
     state.remainingSeconds = selectedSeconds
+    state.totalSeconds = selectedSeconds
     state.isRunning = true
     state.isDone = false
-    await renderPage(bridge)
+    publishPhase('running')
+    publishCountdownState()
+    if (bridge) {
+      await renderPage(bridge)
+    }
 
     if (state.intervalId !== null) {
       window.clearInterval(state.intervalId)
     }
 
     state.intervalId = window.setInterval(() => {
-      if (!state.isRunning || !state.bridge) return
+      if (!state.isRunning) return
 
       state.remainingSeconds = Math.max(0, state.remainingSeconds - 1)
-      void renderPage(state.bridge)
+      publishCountdownState()
+      if (state.bridge) {
+        void renderPage(state.bridge)
+      }
 
       if (state.remainingSeconds === 0) {
         stopCountdown()
         state.isDone = true
+        publishCountdownState()
         log('Timer: completed')
+        if (timerClient?.mode === 'mock') {
+          publishPhase('mock')
+        } else if (timerClient) {
+          publishPhase('connected')
+        }
         if (state.bridge) void renderPage(state.bridge)
       }
     }, 1000)
@@ -322,7 +368,7 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
       async startCountdownFromSelection() {
         const selected = getSelectedSeconds()
         console.log(`[timer] mock start countdown: ${formatDurationClock(selected)}`)
-        return selected
+        return startCountdownFromSelection()
       },
     }
   }
@@ -341,6 +387,8 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
           stopCountdown()
           state.isDone = false
           state.remainingSeconds = getSelectedSeconds()
+          state.totalSeconds = state.remainingSeconds
+          publishCountdownState()
           await renderPage(state.bridge!)
           startClockTicker()
         },
@@ -403,7 +451,6 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
       }
 
       const selectedSeconds = await timerClient.startCountdownFromSelection()
-      publishPhase('running')
       publishStatusMessage(`Timer: started ${formatDurationClock(selectedSeconds)} countdown`)
     },
     async stop() {
@@ -413,6 +460,7 @@ export function createTimerController({ setStatusMessage, setPhase, log }: Timer
       if (state.bridge && state.startupRendered) {
         await renderPage(state.bridge)
       }
+      publishCountdownState()
 
       if (timerClient?.mode === 'mock') {
         publishPhase('mock')

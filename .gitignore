@@ -7,4 +7,5 @@ dist/
 
 # Plugin symlinks
 vite-plugins/restapi-plugin.ts
+vite-plugins/weather-plugin.ts
 
