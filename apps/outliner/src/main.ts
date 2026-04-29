@@ -19,6 +19,7 @@ const protectBtn = document.querySelector<HTMLButtonElement>('#protect-btn')!;
 const screenProtection = document.querySelector<HTMLDivElement>('#screen-protection')!;
 const debugLog = document.querySelector<HTMLDivElement>('#debug-log')!;
 const debugToggle = document.querySelector<HTMLInputElement>('#debug-toggle')!;
+const connectionStatusEl = document.querySelector<HTMLDivElement>('#connection-status')!;
 
 function log(msg: string) {
     const div = document.createElement('div');
@@ -33,6 +34,12 @@ if (tasks.length === 0) {
 
 let cursorIndex = 0;
 let isListening = false;
+let isBridgeConnected = false;
+
+function updateConnectionStatus() {
+    connectionStatusEl.textContent = isBridgeConnected ? 'Glasses: 接続済み' : 'Glasses: 未接続';
+    connectionStatusEl.classList.toggle('is-connected', isBridgeConnected);
+}
 
 const sdk = new EvenBetterSdk();
 const page = sdk.createPage('outliner-v14');
@@ -145,6 +152,8 @@ function getBlockRange(index: number) {
 }
 
 async function syncToGlasses() {
+    if (!isBridgeConnected) return;
+
     const visibleTasks = getVisibleTasks();
     if (cursorIndex >= visibleTasks.length) cursorIndex = Math.max(0, visibleTasks.length - 1);
 
@@ -297,9 +306,12 @@ sdk.addEventListener(async (event) => {
 connectBtn.addEventListener('click', async () => {
     try {
         await EvenBetterSdk.getRawBridge();
+        isBridgeConnected = true;
+        updateConnectionStatus();
         await renderFullList();
         alert('Connected!');
     } catch (e) { console.error(e); }
 });
 
+updateConnectionStatus();
 renderFullList();
