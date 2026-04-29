@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Even Outliner</title>
+    <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+    <div id="app">
+        <div class="header">
+            <h1>Even Outliner</h1>
+        </div>
+
+        <div class="card">
+            <div id="glasses-preview"></div>
+        </div>
+
+        <div class="card">
+            <div class="control-group">
+                <button id="connect-btn">Connect Glasses</button>
+                <button id="menu-btn">☰</button>
+            </div>
+        </div>
+
+        <div id="settings-panel">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888;">
+                <span>行間調整</span>
+                <input type="range" id="spacing-range" min="0" max="20" value="4">
+            </div>
+        </div>
+
+        <div class="card">
+            <ul id="task-list"></ul>
+        </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

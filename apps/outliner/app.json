@@ -1,0 +1,17 @@
+{
+  "name": "Even Outliner",
+  "version": "1.0.0",
+  "package_id": "com.user.evenoutliner",
+  "description": "Smart hierarchical task outliner for Even G2",
+  "entrypoint": "index.html",
+  "edition": "202601",
+  "min_app_version": "1.1.1",
+  "min_sdk_version": "0.1.0",
+  "supported_languages": ["ja", "en"],
+  "permissions": [
+    {
+      "name": "network",
+      "desc": "Required for Even SDK and Voice Recognition"
+    }
+  ]
+}

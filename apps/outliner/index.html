@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Even Outliner</title>
+    <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+    <div id="screen-protection">
+        <div class="unlock-hint">ダブルタップで解除</div>
+    </div>
+
+    <div id="app">
+        <div class="header">
+            <h1>Even Outliner</h1>
+        </div>
+
+        <div class="card">
+            <div id="glasses-preview"></div>
+        </div>
+
+        <div class="card">
+            <div class="control-group">
+                <button id="connect-btn">Connect Glasses</button>
+                <div style="display: flex; gap: 10px; width: 100%;">
+                    <button id="voice-btn" style="flex-grow: 1; background: #333; color: white; font-size: 20px;">🎙️ 音声入力</button>
+                    <button id="protect-btn" style="background: #222; color: #888;">🔒 保護</button>
+                    <button id="menu-btn">☰</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settings-panel">
+            <div class="setting-row" style="margin-bottom: 10px;">
+                <span>行間の調整</span>
+                <input type="range" id="spacing-range" min="0" max="20" value="4">
+            </div>
+            <div class="setting-row">
+                <span>デバッグログを表示</span>
+                <input type="checkbox" id="debug-toggle">
+            </div>
+        </div>
+
+        <div class="card">
+            <ul id="task-list"></ul>
+        </div>
+
+        <div id="debug-log" style="display: none; font-size: 10px; color: #666; background: #000; padding: 10px; border-radius: 5px; font-family: monospace; height: 100px; overflow-y: scroll; margin-top: 20px;">
+            <div>システム準備完了</div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
