@@ -19,6 +19,7 @@ const protectBtn = document.querySelector<HTMLButtonElement>('#protect-btn')!;
 const screenProtection = document.querySelector<HTMLDivElement>('#screen-protection')!;
 const debugLog = document.querySelector<HTMLDivElement>('#debug-log')!;
 const debugToggle = document.querySelector<HTMLInputElement>('#debug-toggle')!;
+const connectionStatusEl = document.querySelector<HTMLDivElement>('#connection-status')!;
 
 function log(msg: string) {
     const div = document.createElement('div');
@@ -33,14 +34,27 @@ if (tasks.length === 0) {
 
 let cursorIndex = 0;
 let isListening = false;
+let isBridgeConnected = false;
+let hasEventListener = false;
 
-const sdk = new EvenBetterSdk();
-const page = sdk.createPage('outliner-v14');
-const listElement = page.addListElement([]);
+function updateConnectionStatus() {
+    connectionStatusEl.textContent = isBridgeConnected ? 'Glasses: 接続済み' : 'Glasses: 未接続';
+    connectionStatusEl.classList.toggle('is-connected', isBridgeConnected);
+}
 
-listElement
-    .setPosition((p) => p.setX(10).setY(10))
-    .setSize((s) => s.setWidth(550).setHeight(300));
+let sdk: EvenBetterSdk | null = null;
+let page: ReturnType<EvenBetterSdk['createPage']> | null = null;
+let listElement: ReturnType<ReturnType<EvenBetterSdk['createPage']>['addListElement']> | null = null;
+
+function ensureGlassesPageReady() {
+    if (sdk && page && listElement) return;
+    sdk = new EvenBetterSdk();
+    page = sdk.createPage('outliner-v14');
+    listElement = page.addListElement([]);
+    listElement
+        .setPosition((p) => p.setX(10).setY(10))
+        .setSize((s) => s.setWidth(550).setHeight(300));
+}
 
 // --- 設定関連 ---
 menuBtn.onclick = () => {
@@ -145,6 +159,10 @@ function getBlockRange(index: number) {
 }
 
 async function syncToGlasses() {
+    if (!isBridgeConnected) return;
+    ensureGlassesPageReady();
+    if (!listElement || !page) return;
+
     const visibleTasks = getVisibleTasks();
     if (cursorIndex >= visibleTasks.length) cursorIndex = Math.max(0, visibleTasks.length - 1);
 
@@ -281,25 +299,33 @@ async function renderFullList(focusId?: string, focusAtStart: boolean = false) {
     syncToGlasses();
 }
 
-// リングイベント
-sdk.addEventListener(async (event) => {
-    const visibleTasks = getVisibleTasks();
-    const type = event.jsonData?.eventType;
-    if (type === OsEventTypeList.SCROLL_TOP_EVENT) cursorIndex = Math.max(0, cursorIndex - 1);
-    else if (type === OsEventTypeList.SCROLL_BOTTOM_EVENT) cursorIndex = Math.min(visibleTasks.length - 1, cursorIndex + 1);
-    else if (type === OsEventTypeList.CLICK_EVENT) {
-        const selectedTask = visibleTasks[cursorIndex];
-        if (selectedTask) selectedTask.isExpanded = !selectedTask.isExpanded;
-    }
-    renderFullList();
-});
+function bindRingEventsOnce() {
+    if (!sdk || hasEventListener) return;
+    sdk.addEventListener(async (event) => {
+        const visibleTasks = getVisibleTasks();
+        const type = event.jsonData?.eventType;
+        if (type === OsEventTypeList.SCROLL_TOP_EVENT) cursorIndex = Math.max(0, cursorIndex - 1);
+        else if (type === OsEventTypeList.SCROLL_BOTTOM_EVENT) cursorIndex = Math.min(visibleTasks.length - 1, cursorIndex + 1);
+        else if (type === OsEventTypeList.CLICK_EVENT) {
+            const selectedTask = visibleTasks[cursorIndex];
+            if (selectedTask) selectedTask.isExpanded = !selectedTask.isExpanded;
+        }
+        renderFullList();
+    });
+    hasEventListener = true;
+}
 
 connectBtn.addEventListener('click', async () => {
     try {
         await EvenBetterSdk.getRawBridge();
+        isBridgeConnected = true;
+        ensureGlassesPageReady();
+        bindRingEventsOnce();
+        updateConnectionStatus();
         await renderFullList();
         alert('Connected!');
     } catch (e) { console.error(e); }
 });
 
+updateConnectionStatus();
 renderFullList();

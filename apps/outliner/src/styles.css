@@ -73,6 +73,15 @@ body {
     gap: 8px;
 }
 
+.connection-status {
+    font-size: 12px;
+    color: #bbb;
+}
+
+.connection-status.is-connected {
+    color: #7CFC96;
+}
+
 #connect-btn {
     width: 100%;
     background: #f0f0f0;
