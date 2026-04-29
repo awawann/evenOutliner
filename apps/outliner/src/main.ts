@@ -35,7 +35,13 @@ if (tasks.length === 0) {
 let cursorIndex = 0;
 let isListening = false;
 let isBridgeConnected = false;
-let hasEventListener = false;
+
+
+function updateConnectionStatus() {
+    connectionStatusEl.textContent = isBridgeConnected ? 'Glasses: 接続済み' : 'Glasses: 未接続';
+    connectionStatusEl.classList.toggle('is-connected', isBridgeConnected);
+}
+
 
 function updateConnectionStatus() {
     connectionStatusEl.textContent = isBridgeConnected ? 'Glasses: 接続済み' : 'Glasses: 未接続';
@@ -160,8 +166,7 @@ function getBlockRange(index: number) {
 
 async function syncToGlasses() {
     if (!isBridgeConnected) return;
-    ensureGlassesPageReady();
-    if (!listElement || !page) return;
+ main
 
     const visibleTasks = getVisibleTasks();
     if (cursorIndex >= visibleTasks.length) cursorIndex = Math.max(0, visibleTasks.length - 1);
@@ -319,8 +324,7 @@ connectBtn.addEventListener('click', async () => {
     try {
         await EvenBetterSdk.getRawBridge();
         isBridgeConnected = true;
-        ensureGlassesPageReady();
-        bindRingEventsOnce();
+ main
         updateConnectionStatus();
         await renderFullList();
         alert('Connected!');
